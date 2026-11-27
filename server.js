@@ -32,7 +32,7 @@ const HINDI_TV_GENRE_IDS = { Action: 10759, Comedy: 35, Drama: 18, Romance: 18, 
 
 const manifest = {
   id: "community.kidscorner.hindi.tmdb",
-  version: "1.0.0",
+  version: "1.0.1",
   name: "Netflix-Style Home: Kids, English & Hindi",
   description: "Trending and new movies and series in English and Hindi, plus a kid-safe section, as Netflix-style rows on your Stremio home screen.",
   logo: "https://em-content.zobj.net/source/apple/391/rocket_1f680.png",
@@ -77,11 +77,15 @@ const HOUR = 3600e3;
 
 async function tmdb(path, params = {}) {
   const url = new URL(TMDB + path);
-  url.searchParams.set("api_key", TMDB_KEY);
+  const isToken = TMDB_KEY.length > 40; // long "Read Access Token" vs short v3 key
+  if (!isToken) url.searchParams.set("api_key", TMDB_KEY);
   url.searchParams.set("language", "en-US");
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") url.searchParams.set(k, v);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`TMDB ${res.status} on ${path}`);
+  const res = await fetch(url, isToken ? { headers: { Authorization: `Bearer ${TMDB_KEY}` } } : undefined);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`TMDB ${res.status} on ${path}: ${body.slice(0, 200)}`);
+  }
   return res.json();
 }
 
@@ -324,6 +328,19 @@ const server = http.createServer(async (req, res) => {
     }
     if (path === "/manifest.json") return send(res, 200, manifest);
 
+    // Diagnostics page (never shows the key itself)
+    if (path === "/health") {
+      const keyVars = Object.keys(process.env).filter((k) => /tmdb/i.test(k));
+      const out = { version: manifest.version, keyLoaded: !!TMDB_KEY, keyLength: TMDB_KEY.length, envVarNamesSeen: keyVars };
+      try {
+        const t0 = Date.now();
+        const d = await tmdb("/trending/movie/week");
+        out.tmdb = `OK — ${(d.results || []).length} results in ${Date.now() - t0}ms`;
+        out.sample = (d.results || []).slice(0, 3).map((r) => r.title);
+      } catch (e) { out.tmdb = "ERROR: " + e.message.replace(TMDB_KEY, "***"); }
+      return send(res, 200, out);
+    }
+
     // /catalog/{type}/{id}.json  or  /catalog/{type}/{id}/{extra}.json
     const m = path.match(/^\/catalog\/(movie|series)\/([^/]+?)(?:\/([^/]+))?\.json$/);
     if (m) {
@@ -334,7 +351,7 @@ const server = http.createServer(async (req, res) => {
     }
     return send(res, 404, { error: "not found" });
   } catch (e) {
-    console.error(e.message);
+    console.error("Catalog error:", e.message.replace(TMDB_KEY, "***"));
     return send(res, 200, { metas: [] }); // never break the Stremio board
   }
 });
