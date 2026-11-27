@@ -32,7 +32,7 @@ const HINDI_TV_GENRE_IDS = { Action: 10759, Comedy: 35, Drama: 18, Romance: 18, 
 
 const manifest = {
   id: "community.kidscorner.hindi.tmdb",
-  version: "1.0.1",
+  version: "1.1.0",
   name: "Netflix-Style Home: Kids, English & Hindi",
   description: "Trending and new movies and series in English and Hindi, plus a kid-safe section, as Netflix-style rows on your Stremio home screen.",
   logo: "https://em-content.zobj.net/source/apple/391/rocket_1f680.png",
@@ -75,13 +75,18 @@ async function cached(key, ttlMs, fn) {
 }
 const HOUR = 3600e3;
 
+// Key can come from the install link (/KEY/manifest.json) or from the server environment
+const { AsyncLocalStorage } = require("async_hooks");
+const reqKey = new AsyncLocalStorage();
+const activeKey = () => reqKey.getStore() || TMDB_KEY;
 async function tmdb(path, params = {}) {
+  const key = activeKey();
   const url = new URL(TMDB + path);
-  const isToken = TMDB_KEY.length > 40; // long "Read Access Token" vs short v3 key
-  if (!isToken) url.searchParams.set("api_key", TMDB_KEY);
+  const isToken = key.length > 40; // long "Read Access Token" vs short v3 key
+  if (!isToken) url.searchParams.set("api_key", key);
   url.searchParams.set("language", "en-US");
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") url.searchParams.set(k, v);
-  const res = await fetch(url, isToken ? { headers: { Authorization: `Bearer ${TMDB_KEY}` } } : undefined);
+  const res = await fetch(url, isToken ? { headers: { Authorization: `Bearer ${key}` } } : undefined);
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`TMDB ${res.status} on ${path}: ${body.slice(0, 200)}`);
@@ -296,48 +301,74 @@ function parseExtra(str) {
   return out;
 }
 
-function landingPage(host) {
-  const manifestUrl = `${host}/manifest.json`;
-  const stremioUrl = manifestUrl.replace(/^https?:\/\//, "stremio://");
+function landingPage(host, hasLinkKey) {
+  const serverHasKey = !!TMDB_KEY;
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Home Rows for Stremio</title>
 <style>
 body{margin:0;font-family:system-ui,sans-serif;background:#141414;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center}
-.c{max-width:520px;padding:32px}h1{font-size:44px;margin:0 0 8px;color:#e50914;letter-spacing:-1px}
-p{color:#bbb;line-height:1.5}a.b{display:inline-block;margin:10px 6px;padding:14px 26px;border-radius:6px;font-weight:700;text-decoration:none}
-.r{background:#e50914;color:#fff}.g{background:#333;color:#fff}code{background:#222;padding:6px 10px;border-radius:4px;display:block;margin-top:16px;word-break:break-all;color:#ddd}
-.warn{color:#ffb347}</style></head><body><div class="c">
+.c{max-width:520px;padding:32px;width:100%;box-sizing:border-box}h1{font-size:44px;margin:0 0 8px;color:#e50914;letter-spacing:-1px}
+p{color:#bbb;line-height:1.5}.b{display:inline-block;margin:8px 4px;padding:14px 22px;border-radius:6px;font-weight:700;text-decoration:none;border:0;font-size:16px;cursor:pointer}
+.r{background:#e50914;color:#fff}.g{background:#333;color:#fff}
+input{width:100%;box-sizing:border-box;padding:14px;border-radius:6px;border:1px solid #444;background:#222;color:#fff;font-size:16px;margin:8px 0}
+code{background:#222;padding:8px 10px;border-radius:4px;display:block;margin-top:12px;word-break:break-all;color:#ddd;font-size:13px}
+.hide{display:none}.small{font-size:13px;color:#888}</style></head><body><div class="c">
 <h1>🍿 Home Rows</h1><p>Trending and new movies and series in English and Hindi, plus a kids section, as rows on your Stremio home screen.</p>
-${TMDB_KEY ? "" : '<p class="warn">⚠️ TMDB_API_KEY is not set on the server, so rows will be empty.</p>'}
-<a class="b r" href="${stremioUrl}">Install in Stremio</a>
-<a class="b g" href="https://web.stremio.com/#/addons?addon=${encodeURIComponent(manifestUrl)}">Install on Stremio Web</a>
-<p>Or paste this into Stremio → Add-ons → search box:</p><code>${manifestUrl}</code></div></body></html>`;
+<div id="keybox" class="${serverHasKey ? "hide" : ""}">
+  <p>Paste your TMDB API key to make your personal install link:</p>
+  <input id="k" placeholder="TMDB API key" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <p class="small">Free at themoviedb.org → Settings → API. It's only stored in your install link.</p>
+</div>
+<div><a id="i1" class="b r" href="#">Install in Stremio</a><a id="i2" class="b g" href="#">Install on Stremio Web</a></div>
+<p>Or paste this link into Stremio → Add-ons → search box:</p><code id="u"></code>
+<script>
+const host=${JSON.stringify(host)}, needKey=${serverHasKey ? "false" : "true"};
+const k=document.getElementById("k");
+function upd(){
+  const key=(k&&k.value||"").trim();
+  const ok=!needKey||key.length>=20;
+  const m=host+(needKey&&key?"/"+encodeURIComponent(key):"")+"/manifest.json";
+  document.getElementById("u").textContent=ok?m:"Enter your key above first";
+  document.getElementById("i1").href=ok?m.replace(/^https?:\/\//,"stremio://"):"#";
+  document.getElementById("i2").href=ok?"https://web.stremio.com/#/addons?addon="+encodeURIComponent(m):"#";
+  for(const id of ["i1","i2"]) document.getElementById(id).style.opacity=ok?1:.4;
+}
+if(k)k.addEventListener("input",upd);upd();
+</script></div></body></html>`;
 }
 
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") return send(res, 204, "");
   const url = new URL(req.url, "http://x");
-  const path = url.pathname;
+  let path = url.pathname;
+  // Personal install links look like /<tmdb key>/manifest.json
+  const km = path.match(/^\/([A-Za-z0-9._-]{20,})(\/.*)$/);
+  let linkKey = "";
+  if (km) { linkKey = km[1]; path = km[2]; }
+  return reqKey.run(linkKey, () => handle(req, res, url, path, linkKey));
+});
+
+async function handle(req, res, url, path, linkKey) {
   try {
     // Stremio apps fetching the bare link get the manifest; browsers get the install page
     const wantsHtml = (req.headers.accept || "").includes("text/html");
     if (path === "/" && !wantsHtml) return send(res, 200, manifest);
     if (path === "/" || path === "/configure") {
       const proto = req.headers["x-forwarded-proto"] || "http";
-      return send(res, 200, landingPage(`${proto}://${req.headers.host}`), "text/html");
+      return send(res, 200, landingPage(`${proto}://${req.headers.host}`, !!linkKey), "text/html");
     }
     if (path === "/manifest.json") return send(res, 200, manifest);
 
     // Diagnostics page (never shows the key itself)
     if (path === "/health") {
       const keyVars = Object.keys(process.env).filter((k) => /tmdb/i.test(k));
-      const out = { version: manifest.version, keyLoaded: !!TMDB_KEY, keyLength: TMDB_KEY.length, envVarNamesSeen: keyVars };
+      const out = { version: manifest.version, keyFrom: linkKey ? "install link" : TMDB_KEY ? "server environment" : "none", keyLength: activeKey().length, envVarNamesSeen: keyVars };
       try {
         const t0 = Date.now();
         const d = await tmdb("/trending/movie/week");
         out.tmdb = `OK — ${(d.results || []).length} results in ${Date.now() - t0}ms`;
         out.sample = (d.results || []).slice(0, 3).map((r) => r.title);
-      } catch (e) { out.tmdb = "ERROR: " + e.message.replace(TMDB_KEY, "***"); }
+      } catch (e) { out.tmdb = "ERROR: " + e.message.split(activeKey() || "\u0000").join("***"); }
       return send(res, 200, out);
     }
 
@@ -346,15 +377,15 @@ const server = http.createServer(async (req, res) => {
     if (m) {
       const [, type, id, extraStr] = m;
       if (!manifest.catalogs.some((c) => c.id === id && c.type === type)) return send(res, 404, { metas: [] });
-      if (!TMDB_KEY) return send(res, 200, { metas: [] });
+      if (!activeKey()) return send(res, 200, { metas: [] });
       return send(res, 200, await getCatalog(type, id, parseExtra(extraStr && decodeURIComponent(extraStr))));
     }
     return send(res, 404, { error: "not found" });
   } catch (e) {
-    console.error("Catalog error:", e.message.replace(TMDB_KEY, "***"));
+    console.error("Catalog error:", e.message.split(activeKey() || "\u0000").join("***"));
     return send(res, 200, { metas: [] }); // never break the Stremio board
   }
-});
+}
 
 if (require.main === module) {
   server.listen(PORT, () => {

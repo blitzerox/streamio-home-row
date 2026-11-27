@@ -44,6 +44,9 @@ Stremio on phones and TVs needs an `https://` address, so host it online:
 (Render's free tier sleeps when idle, so the first load after a break takes about 30 seconds.)
 
 ## 3. Install in Stremio
+
+If you'd rather not set the key on Render, open your Render link, paste your TMDB key into the box, and tap Install. The key is then kept only in your personal install link, so don't share that link.
+
 Open your Render URL in a browser and tap **Install in Stremio**.
 Or open Stremio → Add-ons, then paste `https://YOUR-URL/manifest.json` into the search box.
 
