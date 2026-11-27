@@ -32,9 +32,9 @@ const HINDI_TV_GENRE_IDS = { Action: 10759, Comedy: 35, Drama: 18, Romance: 18, 
 
 const manifest = {
   id: "community.kidscorner.hindi.tmdb",
-  version: "1.2.1",
-  name: "Netflix-Style Home: Kids, English & Hindi",
-  description: "Trending and new movies and series in English and Hindi, plus a kid-safe section, as Netflix-style rows on your Stremio home screen.",
+  version: "1.3.0",
+  name: "Netflix-Style Home: English & Hindi",
+  description: "Trending and new movies and series in English and Hindi, as Netflix-style rows on your Stremio home screen. Kids rows are in the separate Kids Only Home add-on.",
   logo: "https://em-content.zobj.net/source/apple/391/rocket_1f680.png",
   background: "https://image.tmdb.org/t/p/original/ab8m5ZjTe6FE1tVwz6Nl4l0Bz1H.jpg",
   resources: ["catalog"],
@@ -64,13 +64,17 @@ const manifest = {
 };
 
 // Kids-only version: install /kids/manifest.json on a child's profile
+const isKidsRow = (c) => c.id.startsWith("kids_") || c.id === "hindi_kids_movies";
+const allCatalogs = manifest.catalogs;
+// Main add-on: English and Hindi rows only (kids rows live in Kids Only Home)
+manifest.catalogs = allCatalogs.filter((c) => !isKidsRow(c));
 const kidsManifest = {
   ...manifest,
   id: "community.kidscorner.only.tmdb",
   name: "Kids Only Home",
   description: "Only kid-friendly rows: trending and new kids movies and shows, top family movies, and Hindi family movies. Nothing else.",
-  catalogs: manifest.catalogs
-    .filter((c) => c.id.startsWith("kids_") || c.id === "hindi_kids_movies")
+  catalogs: allCatalogs
+    .filter(isKidsRow)
     .map((c) => ({ ...c, name: c.id === "hindi_kids_movies" ? "🇮🇳 Hindi Kids & Family Movies" : c.name })),
 };
 
@@ -344,7 +348,7 @@ textarea{width:100%;box-sizing:border-box;min-height:120px;padding:18px;border-r
 #st{min-height:20px;color:#7CFC9A;font-weight:600}
 code{background:#222;padding:8px 10px;border-radius:4px;display:block;margin-top:12px;word-break:break-all;color:#ddd;font-size:13px}
 .hide{display:none}.small{font-size:13px;color:#888}</style></head><body><div class="c">
-${kidsOnly ? `<h1>🧸 Kids Only</h1><p>Only kid-friendly rows. Install this on your child&#39;s Stremio profile.</p>` : `<h1>🍿 Home Rows</h1><p>Trending and new movies and series in English and Hindi, plus a kids section, as rows on your Stremio home screen.</p><p><a class="b g" href="/kids/configure">🧸 Kids-only version</a></p>`}
+${kidsOnly ? `<h1>🧸 Kids Only</h1><p>Only kid-friendly rows. Install this on your child&#39;s Stremio profile.</p>` : `<h1>🍿 Home Rows</h1><p>Trending and new movies and series in English and Hindi, as rows on your Stremio home screen.</p><p><a class="b g" href="/kids/configure">🧸 Kids-only version</a></p>`}
 <div id="keybox" class="${serverHasKey ? "hide" : ""}">
   <p>Paste your TMDB API key to make your personal install link:</p>
   <button class="paste" id="pb" type="button">📋 Paste my key</button>

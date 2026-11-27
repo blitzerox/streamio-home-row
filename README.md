@@ -9,20 +9,12 @@ Adds these rows to your Stremio home screen (Board), each a scrolling row of pos
 - 🆕 New Series
 - ⭐ Top Rated Movies of the Year
 
-**Kids**
-- 🆕 New for Kids (family/animated movies newly out on digital or Blu-ray)
-- 🔥 Trending Kids Movies (filter by genre in Discover)
-- 🔥 Trending Kids Shows
-- 🆕 New Kids Shows
-- ⭐ Top Rated Family Movies
-
 **Hindi**
 - 🇮🇳 Trending Hindi Movies
 - 🇮🇳 New Hindi Releases
 - 🇮🇳 Trending Hindi Series
 - 🇮🇳 New Hindi Series
 - 🇮🇳 All-Time Great Hindi Movies
-- 🇮🇳 Hindi Family & Kids Movies
 
 Kids rows only include movies rated PG or lower and leave out horror, thriller, crime and war. Data comes from TMDB and refreshes every 6 hours. Items use IMDb ids, so tapping one opens the normal Stremio page and your other add-ons can supply streams.
 
@@ -53,7 +45,7 @@ Or open Stremio → Add-ons, then paste `https://YOUR-URL/manifest.json` into th
 **Netflix-style home screen:** in Stremio's Add-ons list, drag Netflix-Style Home to the top. Its rows then appear first on the Board.
 
 ## Kids-only version
-For a child's Stremio profile, install `https://YOUR-URL/kids/manifest.json` (or open `/kids/configure`). It shows only the kids rows and Hindi Kids & Family Movies. Adult rows are blocked on that link.
+Kids rows are only in the separate **Kids Only Home** add-on, not the main one. For a child's Stremio profile, install `https://YOUR-URL/kids/manifest.json` (or open `/kids/configure`). It shows New for Kids, Trending Kids Movies, Trending Kids Shows, New Kids Shows, Top Rated Family Movies and Hindi Kids & Family Movies. Adult rows are blocked on that link.
 
 ## Options (environment variables)
 | Variable | Default | Meaning |
