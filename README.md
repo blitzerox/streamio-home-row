@@ -1,4 +1,4 @@
-# Netflix-Style Home: Kids, English & Hindi — Stremio add-on
+# Netflix-Style Home: English & Hindi — Stremio add-on (plus Kids Only Home)
 
 Adds these rows to your Stremio home screen (Board), each a scrolling row of posters, like Netflix:
 
