@@ -32,7 +32,7 @@ const HINDI_TV_GENRE_IDS = { Action: 10759, Comedy: 35, Drama: 18, Romance: 18, 
 
 const manifest = {
   id: "community.kidscorner.hindi.tmdb",
-  version: "1.1.0",
+  version: "1.1.1",
   name: "Netflix-Style Home: Kids, English & Hindi",
   description: "Trending and new movies and series in English and Hindi, plus a kid-safe section, as Netflix-style rows on your Stremio home screen.",
   logo: "https://em-content.zobj.net/source/apple/391/rocket_1f680.png",
@@ -310,13 +310,17 @@ body{margin:0;font-family:system-ui,sans-serif;background:#141414;color:#fff;dis
 .c{max-width:520px;padding:32px;width:100%;box-sizing:border-box}h1{font-size:44px;margin:0 0 8px;color:#e50914;letter-spacing:-1px}
 p{color:#bbb;line-height:1.5}.b{display:inline-block;margin:8px 4px;padding:14px 22px;border-radius:6px;font-weight:700;text-decoration:none;border:0;font-size:16px;cursor:pointer}
 .r{background:#e50914;color:#fff}.g{background:#333;color:#fff}
-input{width:100%;box-sizing:border-box;padding:14px;border-radius:6px;border:1px solid #444;background:#222;color:#fff;font-size:16px;margin:8px 0}
+textarea{width:100%;box-sizing:border-box;min-height:120px;padding:18px;border-radius:10px;border:2px solid #e50914;background:#222;color:#fff;font-size:20px;font-family:ui-monospace,monospace;margin:10px 0;resize:vertical;-webkit-user-select:text;user-select:text}
+.paste{width:100%;padding:18px;font-size:20px;border-radius:10px;background:#fff;color:#141414;border:0;font-weight:800;margin-bottom:6px}
+#st{min-height:20px;color:#7CFC9A;font-weight:600}
 code{background:#222;padding:8px 10px;border-radius:4px;display:block;margin-top:12px;word-break:break-all;color:#ddd;font-size:13px}
 .hide{display:none}.small{font-size:13px;color:#888}</style></head><body><div class="c">
 <h1>🍿 Home Rows</h1><p>Trending and new movies and series in English and Hindi, plus a kids section, as rows on your Stremio home screen.</p>
 <div id="keybox" class="${serverHasKey ? "hide" : ""}">
   <p>Paste your TMDB API key to make your personal install link:</p>
-  <input id="k" placeholder="TMDB API key" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <button class="paste" id="pb" type="button">📋 Paste my key</button>
+  <textarea id="k" placeholder="Or tap here and paste your TMDB API key" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text"></textarea>
+  <div id="st"></div>
   <p class="small">Free at themoviedb.org → Settings → API. It's only stored in your install link.</p>
 </div>
 <div><a id="i1" class="b r" href="#">Install in Stremio</a><a id="i2" class="b g" href="#">Install on Stremio Web</a></div>
@@ -325,7 +329,9 @@ code{background:#222;padding:8px 10px;border-radius:4px;display:block;margin-top
 const host=${JSON.stringify(host)}, needKey=${serverHasKey ? "false" : "true"};
 const k=document.getElementById("k");
 function upd(){
-  const key=(k&&k.value||"").trim();
+  const key=(k&&k.value||"").replace(/\s+/g,"");
+  const st=document.getElementById("st");
+  if(st) st.textContent=!needKey?"":key.length>=20?"✅ Key added. Now tap Install.":key?"That looks too short. Check you copied the whole key.":"";
   const ok=!needKey||key.length>=20;
   const m=host+(needKey&&key?"/"+encodeURIComponent(key):"")+"/manifest.json";
   document.getElementById("u").textContent=ok?m:"Enter your key above first";
@@ -333,7 +339,13 @@ function upd(){
   document.getElementById("i2").href=ok?"https://web.stremio.com/#/addons?addon="+encodeURIComponent(m):"#";
   for(const id of ["i1","i2"]) document.getElementById(id).style.opacity=ok?1:.4;
 }
-if(k)k.addEventListener("input",upd);upd();
+if(k){k.addEventListener("input",upd);k.addEventListener("paste",()=>setTimeout(upd,50));}
+const pb=document.getElementById("pb");
+if(pb)pb.addEventListener("click",async()=>{
+  try{const t=await navigator.clipboard.readText();k.value=t;upd();}
+  catch(e){k.focus();document.getElementById("st").textContent="Tap the box below, then hold and choose Paste.";}
+});
+upd();
 </script></div></body></html>`;
 }
 
