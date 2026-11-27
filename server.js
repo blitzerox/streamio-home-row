@@ -5,7 +5,9 @@
 const http = require("http");
 
 const PORT = process.env.PORT || 7000;
-const TMDB_KEY = process.env.TMDB_API_KEY || "";
+// Accept TMDB_API_KEY, TMDB-API-KEY, or any similar spelling
+const TMDB_KEY = (process.env.TMDB_API_KEY || process.env["TMDB-API-KEY"] ||
+  Object.entries(process.env).find(([k]) => k.toUpperCase().replace(/[^A-Z]/g, "") === "TMDBAPIKEY")?.[1] || "").trim();
 const REGION = process.env.REGION || "AU";            // watch/release region
 const CERT_COUNTRY = process.env.CERT_COUNTRY || "US"; // US ratings data is the most complete on TMDB
 const MAX_CERT = process.env.MAX_CERT || "PG";        // "G" for little kids, "PG" for older kids
