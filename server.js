@@ -32,7 +32,7 @@ const HINDI_TV_GENRE_IDS = { Action: 10759, Comedy: 35, Drama: 18, Romance: 18, 
 
 const manifest = {
   id: "community.kidscorner.hindi.tmdb",
-  version: "1.2.0",
+  version: "1.2.1",
   name: "Netflix-Style Home: Kids, English & Hindi",
   description: "Trending and new movies and series in English and Hindi, plus a kid-safe section, as Netflix-style rows on your Stremio home screen.",
   logo: "https://em-content.zobj.net/source/apple/391/rocket_1f680.png",
@@ -135,14 +135,25 @@ function discoverQuery(catalogId, genre, page) {
         "vote_count.gte": 20,
       }];
     case "kids_new_movies":
+      // Ratings and release dates must come from the same country's release record
       return ["/discover/movie", {
         ...movieBase,
+        region: CERT_COUNTRY,
         sort_by: "popularity.desc",
         with_genres: "10751|16",
         with_release_type: "4|5", // digital or physical = watchable at home
-        "release_date.gte": daysAgo(180),
+        "release_date.gte": daysAgo(240),
         "release_date.lte": today(),
       }];
+    case "kids_new_movies__fallback":
+      return ["/discover/movie", {
+        include_adult: "false", without_genres: BLOCK_MOVIE_GENRES, page,
+        sort_by: "popularity.desc",
+        with_genres: "10751|16",
+        "primary_release_date.gte": daysAgo(365),
+        "primary_release_date.lte": today(),
+        "vote_count.gte": 5,
+      }, (r) => r.adult === false || r.adult === undefined];
     case "kids_top_movies":
       return ["/discover/movie", {
         ...movieBase,
@@ -284,8 +295,13 @@ async function getCatalog(type, catalogId, extra) {
   if (!q) return { metas: [] };
   const key = `cat:${catalogId}:${extra.genre || ""}:${page}`;
   return cached(key, 6 * HOUR, async () => {
-    const data = await tmdb(q[0], q[1]);
-    const keep = q[2] || (() => true);
+    let data = await tmdb(q[0], q[1]);
+    let keep = q[2] || (() => true);
+    // If a strict row comes back empty, use its looser backup query
+    if (!(data.results || []).length) {
+      const fb = discoverQuery(catalogId + "__fallback", extra.genre, page);
+      if (fb) { data = await tmdb(fb[0], fb[1]); keep = fb[2] || (() => true); }
+    }
     const metas = (await Promise.all((data.results || []).filter((r) => r.poster_path && keep(r)).map((r) => toMeta(r, type)))).filter(Boolean);
     return { metas, cacheMaxAge: 6 * 3600 };
   });
