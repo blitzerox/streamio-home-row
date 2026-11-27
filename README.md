@@ -52,6 +52,9 @@ Or open Stremio → Add-ons, then paste `https://YOUR-URL/manifest.json` into th
 
 **Netflix-style home screen:** in Stremio's Add-ons list, drag Netflix-Style Home to the top. Its rows then appear first on the Board.
 
+## Kids-only version
+For a child's Stremio profile, install `https://YOUR-URL/kids/manifest.json` (or open `/kids/configure`). It shows only the kids rows and Hindi Kids & Family Movies. Adult rows are blocked on that link.
+
 ## Options (environment variables)
 | Variable | Default | Meaning |
 |---|---|---|

@@ -32,7 +32,7 @@ const HINDI_TV_GENRE_IDS = { Action: 10759, Comedy: 35, Drama: 18, Romance: 18, 
 
 const manifest = {
   id: "community.kidscorner.hindi.tmdb",
-  version: "1.1.1",
+  version: "1.2.0",
   name: "Netflix-Style Home: Kids, English & Hindi",
   description: "Trending and new movies and series in English and Hindi, plus a kid-safe section, as Netflix-style rows on your Stremio home screen.",
   logo: "https://em-content.zobj.net/source/apple/391/rocket_1f680.png",
@@ -61,6 +61,17 @@ const manifest = {
     { type: "movie", id: "hindi_kids_movies", name: "🇮🇳 Hindi Family & Kids Movies", extra: [{ name: "skip" }] },
   ],
   behaviorHints: { configurable: false },
+};
+
+// Kids-only version: install /kids/manifest.json on a child's profile
+const kidsManifest = {
+  ...manifest,
+  id: "community.kidscorner.only.tmdb",
+  name: "Kids Only Home",
+  description: "Only kid-friendly rows: trending and new kids movies and shows, top family movies, and Hindi family movies. Nothing else.",
+  catalogs: manifest.catalogs
+    .filter((c) => c.id.startsWith("kids_") || c.id === "hindi_kids_movies")
+    .map((c) => ({ ...c, name: c.id === "hindi_kids_movies" ? "🇮🇳 Hindi Kids & Family Movies" : c.name })),
 };
 
 // ---------- tiny cache ----------
@@ -301,7 +312,8 @@ function parseExtra(str) {
   return out;
 }
 
-function landingPage(host, hasLinkKey) {
+function landingPage(host, hasLinkKey, kidsOnly) {
+  const base = kidsOnly ? host + "/kids" : host;
   const serverHasKey = !!TMDB_KEY;
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Home Rows for Stremio</title>
@@ -315,7 +327,7 @@ textarea{width:100%;box-sizing:border-box;min-height:120px;padding:18px;border-r
 #st{min-height:20px;color:#7CFC9A;font-weight:600}
 code{background:#222;padding:8px 10px;border-radius:4px;display:block;margin-top:12px;word-break:break-all;color:#ddd;font-size:13px}
 .hide{display:none}.small{font-size:13px;color:#888}</style></head><body><div class="c">
-<h1>🍿 Home Rows</h1><p>Trending and new movies and series in English and Hindi, plus a kids section, as rows on your Stremio home screen.</p>
+${kidsOnly ? `<h1>🧸 Kids Only</h1><p>Only kid-friendly rows. Install this on your child&#39;s Stremio profile.</p>` : `<h1>🍿 Home Rows</h1><p>Trending and new movies and series in English and Hindi, plus a kids section, as rows on your Stremio home screen.</p><p><a class="b g" href="/kids/configure">🧸 Kids-only version</a></p>`}
 <div id="keybox" class="${serverHasKey ? "hide" : ""}">
   <p>Paste your TMDB API key to make your personal install link:</p>
   <button class="paste" id="pb" type="button">📋 Paste my key</button>
@@ -326,7 +338,7 @@ code{background:#222;padding:8px 10px;border-radius:4px;display:block;margin-top
 <div><a id="i1" class="b r" href="#">Install in Stremio</a><a id="i2" class="b g" href="#">Install on Stremio Web</a></div>
 <p>Or paste this link into Stremio → Add-ons → search box:</p><code id="u"></code>
 <script>
-const host=${JSON.stringify(host)}, needKey=${serverHasKey ? "false" : "true"};
+const host=${JSON.stringify(base)}, needKey=${serverHasKey ? "false" : "true"};
 const k=document.getElementById("k");
 function upd(){
   const key=[...(k&&k.value||"")].filter(c=>c.trim()).join("");
@@ -357,19 +369,23 @@ const server = http.createServer(async (req, res) => {
   const km = path.match(/^\/([A-Za-z0-9._-]{20,})(\/.*)$/);
   let linkKey = "";
   if (km) { linkKey = km[1]; path = km[2]; }
-  return reqKey.run(linkKey, () => handle(req, res, url, path, linkKey));
+  // Kids-only links look like /kids/manifest.json
+  let kidsOnly = false;
+  if (path === "/kids" || path.startsWith("/kids/")) { kidsOnly = true; path = path.slice(5) || "/"; }
+  return reqKey.run(linkKey, () => handle(req, res, url, path, linkKey, kidsOnly));
 });
 
-async function handle(req, res, url, path, linkKey) {
+async function handle(req, res, url, path, linkKey, kidsOnly) {
+  const mf = kidsOnly ? kidsManifest : manifest;
   try {
     // Stremio apps fetching the bare link get the manifest; browsers get the install page
     const wantsHtml = (req.headers.accept || "").includes("text/html");
-    if (path === "/" && !wantsHtml) return send(res, 200, manifest);
+    if (path === "/" && !wantsHtml) return send(res, 200, mf);
     if (path === "/" || path === "/configure") {
       const proto = req.headers["x-forwarded-proto"] || "http";
-      return send(res, 200, landingPage(`${proto}://${req.headers.host}`, !!linkKey), "text/html");
+      return send(res, 200, landingPage(`${proto}://${req.headers.host}`, !!linkKey, kidsOnly), "text/html");
     }
-    if (path === "/manifest.json") return send(res, 200, manifest);
+    if (path === "/manifest.json") return send(res, 200, mf);
 
     // Diagnostics page (never shows the key itself)
     if (path === "/health") {
@@ -388,7 +404,7 @@ async function handle(req, res, url, path, linkKey) {
     const m = path.match(/^\/catalog\/(movie|series)\/([^/]+?)(?:\/([^/]+))?\.json$/);
     if (m) {
       const [, type, id, extraStr] = m;
-      if (!manifest.catalogs.some((c) => c.id === id && c.type === type)) return send(res, 404, { metas: [] });
+      if (!mf.catalogs.some((c) => c.id === id && c.type === type)) return send(res, 404, { metas: [] });
       if (!activeKey()) return send(res, 200, { metas: [] });
       return send(res, 200, await getCatalog(type, id, parseExtra(extraStr && decodeURIComponent(extraStr))));
     }
