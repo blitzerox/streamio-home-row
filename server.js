@@ -313,6 +313,9 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   const path = url.pathname;
   try {
+    // Stremio apps fetching the bare link get the manifest; browsers get the install page
+    const wantsHtml = (req.headers.accept || "").includes("text/html");
+    if (path === "/" && !wantsHtml) return send(res, 200, manifest);
     if (path === "/" || path === "/configure") {
       const proto = req.headers["x-forwarded-proto"] || "http";
       return send(res, 200, landingPage(`${proto}://${req.headers.host}`), "text/html");
