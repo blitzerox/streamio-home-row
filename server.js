@@ -329,13 +329,13 @@ code{background:#222;padding:8px 10px;border-radius:4px;display:block;margin-top
 const host=${JSON.stringify(host)}, needKey=${serverHasKey ? "false" : "true"};
 const k=document.getElementById("k");
 function upd(){
-  const key=(k&&k.value||"").replace(/\s+/g,"");
+  const key=[...(k&&k.value||"")].filter(c=>c.trim()).join("");
   const st=document.getElementById("st");
   if(st) st.textContent=!needKey?"":key.length>=20?"✅ Key added. Now tap Install.":key?"That looks too short. Check you copied the whole key.":"";
   const ok=!needKey||key.length>=20;
   const m=host+(needKey&&key?"/"+encodeURIComponent(key):"")+"/manifest.json";
   document.getElementById("u").textContent=ok?m:"Enter your key above first";
-  document.getElementById("i1").href=ok?m.replace(/^https?:\/\//,"stremio://"):"#";
+  document.getElementById("i1").href=ok?m.replace("https://","stremio://").replace("http://","stremio://"):"#";
   document.getElementById("i2").href=ok?"https://web.stremio.com/#/addons?addon="+encodeURIComponent(m):"#";
   for(const id of ["i1","i2"]) document.getElementById(id).style.opacity=ok?1:.4;
 }
