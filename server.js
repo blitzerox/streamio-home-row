@@ -148,6 +148,7 @@ function discoverQuery(catalogId, genre, page) {
     case "kids_new_movies__fallback":
       return ["/discover/movie", {
         include_adult: "false", without_genres: BLOCK_MOVIE_GENRES, page,
+        certification_country: CERT_COUNTRY, "certification.lte": MAX_CERT, // still PG or lower
         sort_by: "popularity.desc",
         with_genres: "10751|16",
         "primary_release_date.gte": daysAgo(365),
